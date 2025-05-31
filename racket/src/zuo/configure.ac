@@ -26,7 +26,7 @@ AC_PROG_MAKE_SET()
 AC_PROG_CC
 
 if test "${CC_FOR_BUILD}" = ""; then
-  CC_FOR_BUILD='$(CC) -O2'
+  CC_FOR_BUILD='$(CC) -O2 --std=c89 -Wall -Wextra -Werror'
   CPPFLAGS_FOR_BUILD='$(CPPFLAGS)'
   CFLAGS_FOR_BUILD='$(CFLAGS)'
   LDFLAGS_FOR_BUILD='$(LDFLAGS)'

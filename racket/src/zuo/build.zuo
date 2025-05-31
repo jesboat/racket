@@ -20,7 +20,7 @@
       [(eq? (system-type) 'unix)
        (hash 'prefix "/usr/local"
              'CC "cc"
-             'CFLAGS "-O2")]
+             'CFLAGS "-O2 --std=c89 -Wall -Wextra -Werror")]
       [else
        (hash 'prefix "C:\\Program Files\\Zuo"
              'CC "cl.exe"
