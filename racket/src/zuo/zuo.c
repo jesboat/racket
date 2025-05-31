@@ -11,6 +11,7 @@
 # define ZUO_UNIX
 #endif
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +41,18 @@
 # include <assert.h>
 # define ZUO_ASSERT(x) assert(x)
 #else
-# define ZUO_ASSERT(x) do { } while (0)
+# define ZUO_ASSERT(x) do { if (0) if (x); } while (0)
+#endif
+
+#if __STDC_VERSION__ >= 202311L
+ /* static_assert is native; nothing to do */
+#elif __STDC_VERSION__ >= 201112L || __GNUC__
+# define static_assert(expr) _Static_assert(expr, "static assert failure")
+#else
+# define static_assert(expr) \
+    struct { \
+        char static_assertion_line_##__LINE__[(expr) ? 0 : -1]; \
+    };
 #endif
 
 /* `zuo_int_t` should be a 64-bit integer type, so we don't have to
@@ -79,6 +91,13 @@ typedef unsigned long zuo_uintptr_t;
 
 typedef HANDLE zuo_raw_handle_t;
 #endif
+
+static_assert(sizeof(zuo_int_t) == 8);
+static_assert(sizeof(zuo_uint_t) == 8);
+static_assert(sizeof(zuo_int32_t) == 4);
+static_assert(sizeof(zuo_uint32_t) == 4);
+static_assert(sizeof(zuo_intptr_t) == sizeof(void*));
+static_assert(sizeof(zuo_uintptr_t) == sizeof(void*));
 
 #define ZUO_HANDLE_ID(h) ((zuo_int_t)(h))
 
@@ -169,6 +188,8 @@ typedef struct {
   zuo_int_t i;
 } zuo_integer_t;
 
+static_assert(sizeof(zuo_integer_t) >= sizeof(zuo_forwarded_t));
+
 #define ZUO_INT_I(p)  (((zuo_integer_t *)(p))->i)
 #define ZUO_UINT_I(p) ((zuo_uint_t)(((zuo_integer_t *)(p))->i))
 
@@ -177,6 +198,8 @@ typedef struct {
   zuo_t *car;
   zuo_t *cdr;
 } zuo_pair_t;
+
+static_assert(sizeof(zuo_pair_t) >= sizeof(zuo_forwarded_t));
 
 #define ZUO_CAR(p) (((zuo_pair_t *)(p))->car)
 #define ZUO_CDR(p) (((zuo_pair_t *)(p))->cdr)
@@ -195,6 +218,9 @@ typedef struct {
   unsigned char s[1];
 } zuo_string_t;
 
+static_assert(sizeof(zuo_string_t) >= sizeof(zuo_forwarded_t));
+static_assert(offsetof(zuo_string_t, len) == offsetof(zuo_forwarded_t, forward));
+
 /* Since `len` overlaps with forwarding, we can tentatively get the "length" from any object */
 #define ZUO_STRING_LEN(obj) (((zuo_string_t *)(obj))->len)
 
@@ -206,6 +232,8 @@ typedef struct {
   zuo_int32_t id;
   zuo_t *str;
 } zuo_symbol_t;
+
+static_assert(sizeof(zuo_symbol_t) >= sizeof(zuo_forwarded_t));
 
 #define ZUO_TRIE_BFACTOR_BITS 4
 #define ZUO_TRIE_BFACTOR      (1 << ZUO_TRIE_BFACTOR_BITS)
@@ -219,11 +247,15 @@ typedef struct zuo_trie_node_t {
   struct zuo_t* next[ZUO_TRIE_BFACTOR];
 } zuo_trie_node_t;
 
+static_assert(sizeof(zuo_trie_node_t) >= sizeof(zuo_forwarded_t));
+
 typedef struct {
   zuo_t obj;
   zuo_t *name;
   zuo_t *val;
 } zuo_variable_t;
+
+static_assert(sizeof(zuo_variable_t) >= sizeof(zuo_forwarded_t));
 
 typedef void (*zuo_proc_t)(void);
 typedef zuo_t *(*zuo_dispatcher_proc_t)(zuo_proc_t proc, zuo_t *arguments);
@@ -236,6 +268,8 @@ typedef struct {
   zuo_t *name;
 } zuo_primitive_t;
 
+static_assert(sizeof(zuo_primitive_t) >= sizeof(zuo_forwarded_t));
+
 /* only try to count up to this high for arity checking: */
 #define ZUO_MAX_PRIM_ARITY 10
 
@@ -244,6 +278,8 @@ typedef struct {
   zuo_t *lambda;
   zuo_t *env;
 } zuo_closure_t;
+
+static_assert(sizeof(zuo_closure_t) >= sizeof(zuo_forwarded_t));
 
 typedef enum {
   zuo_handle_open_fd_in_status,
@@ -269,6 +305,8 @@ typedef struct zuo_handle_t {
   } u;
 } zuo_handle_t;
 
+static_assert(sizeof(zuo_handle_t) >= sizeof(zuo_forwarded_t));
+
 #define ZUO_HANDLE_RAW(obj) (((zuo_handle_t *)(obj))->u.h.u.handle)
 
 typedef struct {
@@ -276,6 +314,8 @@ typedef struct {
   zuo_t *tag;
   zuo_t *val;
 } zuo_opaque_t;
+
+static_assert(sizeof(zuo_opaque_t) >= sizeof(zuo_forwarded_t));
 
 typedef enum {
   zuo_apply_cont,
@@ -293,6 +333,8 @@ typedef struct zuo_cont_t {
   zuo_t *in_proc; /* string or #f */
   zuo_t *next;
 } zuo_cont_t;
+
+static_assert(sizeof(zuo_cont_t) >= sizeof(zuo_forwarded_t));
 
 /* GC roots: */
 static struct {
@@ -380,15 +422,6 @@ static void zuo_panic(const char *s) {
   exit(1);
 }
 
-static void zuo_check_sanity(void) {
-  if (sizeof(zuo_int32_t) != 4)
-    zuo_panic("wrong int32 size");
-  if (sizeof(zuo_int_t) != 8)
-    zuo_panic("wrong int size");
-  if ((void*)&(((zuo_string_t *)NULL)->len) != (void*)&(((zuo_forwarded_t *)NULL)->forward))
-    zuo_panic("string len field misplaced");
-}
-
 /*======================================================================*/
 /* signal forward declarations                                          */
 /*======================================================================*/
@@ -439,7 +472,8 @@ static void *malloc_or_recycle(zuo_int_t min_size, zuo_int_t *size) {
 static zuo_t *zuo_new(int tag, zuo_int_t size) {
   zuo_t *obj;
 
-  ZUO_ASSERT(size >= sizeof(zuo_forwarded_t));
+  ZUO_ASSERT(size > 0);
+  ZUO_ASSERT(((uint64_t) size) >= sizeof(zuo_forwarded_t));
 
   size = ALLOC_ALIGN(size);
 
@@ -1090,6 +1124,10 @@ static zuo_t *zuo_symbol_from_string(const char *in_str, zuo_t *str_obj) {
   const unsigned char *str = (const unsigned char *)in_str;
   zuo_int_t i;
   zuo_trie_node_t *node = (zuo_trie_node_t *)z.o_intern_table;
+
+  /* Each 8-bit char is broken into 2x 4-bit nibbles; each nibble
+   * then fits into a single layer of the trie */
+  static_assert(ZUO_TRIE_BFACTOR_BITS * 2 >= sizeof(*str) * 8);
 
   for (i = 0; str[i]; i++) {
     int c = str[i], lo = c & ZUO_TRIE_BFACTOR_MASK, hi = c >> ZUO_TRIE_BFACTOR_BITS;
@@ -7159,8 +7197,6 @@ static zuo_t *zuo_self_path(const char *exec_file) {
   zuo_trie_set(z.o_top_env, zuo_symbol(name), val)
 
 static void zuo_primitive_init(int will_load_image) {
-  zuo_check_sanity();
-
   zuo_configure();
   zuo_init_terminal();
   zuo_init_signal_handler();
