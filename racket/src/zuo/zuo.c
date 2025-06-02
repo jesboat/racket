@@ -37,7 +37,7 @@
 # include <fcntl.h>
 #endif
 
-#if 0
+#if 1
 # include <assert.h>
 # define ZUO_ASSERT(x) assert(x)
 #else
