@@ -337,7 +337,7 @@ typedef struct zuo_cont_t {
 static_assert(sizeof(zuo_cont_t) >= sizeof(zuo_forwarded_t));
 
 /* GC roots: */
-static struct {
+static struct zuo_roots_t {
   /* Roots kept in an image dump: */
   struct {
     /* singleton values */
