@@ -47,19 +47,22 @@
     (target (at-dir (add-exe name))
             (lambda (path token)
               (rule (list source-file
-                          (input-data-target 'config (cons
-                                                      lib-path
-                                                      (map (lambda (key) (hash-ref config key #f))
-                                                           '(CC CPPFLAGS CFLAGS LDFLAGS LIBS))))
-                          (quote-module-path))
-                    (lambda ()
-                      (define l (split-path path))
-                      (when (car l) (mkdir-p (car l)))
-                      (c-compile path
-                                 (list (target-path image_zuo.c))
-                                 (config-merge config
-                                               'CPPFLAGS
-                                               (string->shell (~a "-DZUO_LIB_PATH=" lib-path)))))))))
+                          (input-data-target
+                                    'config (cons
+                                              lib-path
+                                              (map (lambda (key) (hash-ref config key #f))
+                                                   '(CC CPPFLAGS CFLAGS LDFLAGS LIBS))))
+                                              (quote-module-path))
+                (lambda ()
+                  (define l (split-path path))
+                  (when (car l) (mkdir-p (car l)))
+                  (c-compile path
+                             (list (if (target? source-file)
+                                       (target-path source-file)
+                                       source-file))
+                             (config-merge config
+                                           'CPPFLAGS
+                                           (string->shell (~a "-DZUO_LIB_PATH=" lib-path)))))))))
 
   (define (add-exe name)
     (if (eq? (hash-ref (runtime-env) 'system-type) 'windows)
@@ -75,9 +78,9 @@
       (as-c-string (find-relative-path "to-run" (at-source "lib")))))
   (define zuo-to-install (exe-target "to-install/zuo" image_zuo.c
       (as-c-string (build-path pkgdatadir ".."))))
-  (define plain-zuo-to-run (exe-target "to-run/plain-zuo" (at-source "." "zuo.c")
+  (define plain-zuo-to-run (exe-target "to-run/plain-zuo" (at-dir "zuo.c")
       (as-c-string (find-relative-path "to-run" (at-source "lib")))))
-  (define plain-zuo-to-install (exe-target "to-install/plain-zuo" (at-source "." "zuo.c")
+  (define plain-zuo-to-install (exe-target "to-install/plain-zuo" (at-dir "zuo.c")
       (as-c-string (build-path pkgdatadir ".."))))
 
   ;; A phony target to build both executables, which we'll list first
