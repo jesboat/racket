@@ -31,7 +31,7 @@
                   (let loop ([i+1 len])
                     (cond
                       [(zero? i+1)
-                       (if (letter-drive-start? bstr len)
+                       (if (letter-drive-start? in-bstr len)
                            (subbytes in-bstr 2)
                            in-bstr)]
                       [else
