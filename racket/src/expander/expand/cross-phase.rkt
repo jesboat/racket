@@ -109,9 +109,10 @@
        (for ([clause (in-list (parsed-let_-values-clauses e))])
          (check-no-disallowed-expr (cadr clause)))
        (check-body-no-disallowed-expr (parsed-let_-values-body e))]
-      [(or (parsed-quote-syntax? e)
-           (parsed-#%variable-reference? e))
+      [(parsed-#%variable-reference? e)
        (disallow e)]
+      [(parsed-quote-syntax? e)
+       (check-quoted-syntax (parsed-quote-syntax-datum e) e)]
       ;; Other forms have no subexpressions
       [else (void)]))
 
@@ -125,11 +126,60 @@
   (unless (= is-num expected-num)
     (disallow enclosing)))
 
+; (walk-for-quotable d recur) -> (or/c (not/c #f) #f)
+;   d : any/c
+;   recur : (any/c . -> . (or/c (not/c #f) #f))
+; If `d`'s outermost structure is quotable, then returns `(and (recur u) ...)`
+; where `u ...` are the pieces of immediate substructure of d. Else, returns #f.
+; Note that, if it encounters an unquotable expression, `(recur u)` can either
+; return #f or raise.
+(define (walk-for-quotable d recur)
+  (or (number? d)
+      (boolean? d)
+      (symbol? d)
+      (and (string? d) (immutable? d))
+      (and (bytes? d) (immutable? d))
+      (char? d)
+      (keyword? d)
+      (null? d)
+      (regexp? d)
+      (and (pair? d)
+           (recur (car d))
+           (recur (cdr d)))
+      (and (vector? d)
+           (immutable? d)
+           (for/and ([v (in-vector d)]) (recur v)))
+      (and (hash? d)
+           (hash-eq? d)
+           (immutable? d)
+           (for/and ([(k v) (in-hash d)])
+             (and (recur k) (recur v))))
+      (and (box? d)
+           (immutable? d)
+           (recur (unbox d)))))
+
+; (check-datum datum expr) -> (or/c (not/c #f) #f)
+;   datum : any/c
+;   expr : (or/c parsed? syntax?)
+; If datum is quotable, returns an unspecified not-#f value. Else, raises an
+; error with `e` as the context.
 (define (check-datum d e)
-  (cond
-    [(or (number? d) (boolean? d) (symbol? d) (string? d) (bytes? d) (null? d))
-     (void)]
-    [else (disallow e)]))
+  (or (walk-for-quotable d
+                         (lambda (d2)
+                           (check-datum d2 e)))
+      (disallow e)))
+
+; (check-quoted-syntax s/d expr) -> (or/c (not/c #f) #f)
+;   s/d : (or/c syntax? any/c)
+;   expr : (or/c parsed? syntax?)
+; If s/d is a quotable datum or syntax wrapping a quotable datum, returns an
+; unspecified non-#f value. Else, raises an error with the innermost non-quotable
+; stx as context.
+(define (check-quoted-syntax s/d e)
+  (or (walk-for-quotable (if (syntax? s/d) (syntax-e s/d) s/d)
+                         (lambda (s/d2)
+                           (check-quoted-syntax s/d2 (if (syntax? s/d2) s/d2 e))))
+      (disallow e)))
 
 (define (quoted-string? e)
   (and (parsed-quote? e)
