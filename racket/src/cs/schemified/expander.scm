@@ -473,10 +473,14 @@
 (define rx2937 (regexp "[.]zo$"))
 (define rx2418 (regexp "[.]ss$"))
 (define kw2186 (string->keyword "local"))
-(define kws2576
+(define kws2519
   (cons
-   (string->keyword "copy")
-   (cons (string->keyword "pure") (cons (string->keyword "effect") '()))))
+   (string->keyword "copy*")
+   (cons
+    (string->keyword "copy")
+    (cons
+     (string->keyword "pure*")
+     (cons (string->keyword "pure") (cons (string->keyword "effect") '()))))))
 (define kws2378 (cons (string->keyword "effect") '()))
 (define hash2390
   (hasheq
@@ -24046,7 +24050,7 @@
   (lambda (s_0)
     (let ((built-in-s_0 (string->symbol (format ".~s" s_0))))
       (begin (hash-set! built-in-symbols built-in-s_0 #t) built-in-s_0))))
-(define effect_2626
+(define effect_2181
   (begin
     (void
      (begin
@@ -24158,7 +24162,17 @@
              ptr-set!/double
              ptr-ref/float
              ptr-set!/float
-             ffi-static-call-and-callback-core))))
+             ffi-static-call-and-callback-core
+             ffi2-ptr?-maker
+             ffi2-procedure-maker
+             ffi2-callback-maker
+             ffi2-ptr-ref-maker
+             ffi2-ptr-set!-maker
+             ffi2-malloc-maker
+             ffi2-ptr-cast-maker
+             ffi2-sizeof
+             ffi2-offsetof
+             ffi2-system-type-select))))
     (void)))
 (define phase-shift-id (make-built-in-symbol! 'phase))
 (define dest-phase-id (make-built-in-symbol! 'dest-phase))
@@ -24196,7 +24210,7 @@
    #f
    #f
    '(2 . 0)))
-(define effect_2627 (finish_2005 struct:module-path-index-table))
+(define effect_2626 (finish_2005 struct:module-path-index-table))
 (define module-path-index-table1.1
   (|#%name|
    module-path-index-table
@@ -69684,7 +69698,7 @@
                                          in38_0))
                                        (raise-argument-error
                                         who31_0
-                                        "(or/c (procedure-arity-includes?/c 2) (procedure-arity-includes?/c 6))"
+                                        "(or/c (procedure-arity-includes/c 2) (procedure-arity-includes/c 6))"
                                         extension_0)))
                                    (if (procedure-arity-includes?
                                         extension_0
@@ -69703,7 +69717,7 @@
                                      (if get-info?30_0
                                        (raise-argument-error
                                         who31_0
-                                        "(procedure-arity-includes?/c 5)"
+                                        "(procedure-arity-includes/c 5)"
                                         extension_0)
                                        (if (procedure-arity-includes?
                                             extension_0
@@ -69715,7 +69729,7 @@
                                           (|#%app| extension_0 in38_0))
                                          (raise-argument-error
                                           who31_0
-                                          "(or/c (procedure-arity-includes?/c 1) (procedure-arity-includes?/c 5))"
+                                          "(or/c (procedure-arity-includes/c 1) (procedure-arity-includes/c 5))"
                                           extension_0)))))))
                             (if get-info?30_0
                               (begin
@@ -69725,7 +69739,7 @@
                                   (void)
                                   (raise-result-error
                                    'read-language
-                                   "(procedure-arity-includes?/c 2)"
+                                   "(procedure-arity-includes/c 2)"
                                    result-v_0))
                                 result-v_0)
                               (if (1/special-comment? result-v_0)
@@ -82789,7 +82803,7 @@
                         (let ((temp278_0 (list quote-syntax261_0 datum-s_0)))
                           (rebuild.1 #t s_0 temp278_0))))))))))))))
     (void)))
-(define effect_3004
+(define effect_3058
   (begin
     (void
      (add-core-form!*
@@ -82918,7 +82932,7 @@
               (lambda (ok?_1 foreign-inline288_0 datum289_0)
                 (begin
                   (if ok?_0
-                    (if (memq (syntax-e$1 mode281_0) kws2576)
+                    (if (memq (syntax-e$1 mode281_0) kws2519)
                       (void)
                       (raise-syntax-error$1
                        #f
