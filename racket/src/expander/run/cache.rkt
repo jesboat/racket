@@ -1,6 +1,6 @@
 #lang racket/base
 (require racket/file
-         racket/port
+         "ports.rkt"
          file/sha1
          "../compile/read-linklet.rkt")
 

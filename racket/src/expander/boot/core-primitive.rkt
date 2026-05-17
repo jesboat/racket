@@ -24,6 +24,7 @@
          "../syntax/api.rkt"
          "../syntax/api-taint.rkt"
          "../syntax/error.rkt"
+         (only-in "../run/error-knots.rkt")
          "../syntax/serialize.rkt"
          "../read/api.rkt"
          "../common/module-path.rkt"
